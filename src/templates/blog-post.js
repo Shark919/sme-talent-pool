@@ -1,54 +1,95 @@
-import React from "react"
-import { Link, graphql } from "gatsby"
+import { API, Auth, graphqlOperation } from 'aws-amplify'
+import { graphql, Link } from 'gatsby'
+import React from 'react'
+import uuid from 'uuid'
+import Bio from '../components/Bio'
+import Layout from '../components/Layout'
+import SEO from '../components/seo'
+import { createPostLike, deletePostLike } from '../graphql/mutations'
+import { listPostLikes } from '../graphql/queries'
+import { rhythm, scale } from '../utils/typography'
 
-import Bio from "../components/bio"
-import Layout from "../components/layout"
-import SEO from "../components/seo"
-import { rhythm, scale } from "../utils/typography"
 
-const BlogPostTemplate = ({ data, pageContext, location }) => {
-  const post = data.markdownRemark
-  const siteTitle = data.site.siteMetadata.title
-  const { previous, next } = pageContext
+class BlogPostTemplate extends React.Component {
+  state = {
+    isLoggedIn: false,
+    like: null,
+    user: null
+  }
 
-  return (
-    <Layout location={location} title={siteTitle}>
-      <SEO
-        title={post.frontmatter.title}
-        description={post.frontmatter.description || post.excerpt}
-      />
-      <article>
-        <header>
-          <h1
-            style={{
-              marginTop: rhythm(1),
-              marginBottom: 0,
-            }}
-          >
-            {post.frontmatter.title}
-          </h1>
-          <p
-            style={{
-              ...scale(-1 / 5),
-              display: `block`,
-              marginBottom: rhythm(1),
-            }}
-          >
-            {post.frontmatter.date}
-          </p>
-        </header>
-        <section dangerouslySetInnerHTML={{ __html: post.html }} />
+  componentDidMount = async () => {
+    const post = this.props.data.markdownRemark
+    const user = await Auth.currentAuthenticatedUser()
+    const { data } = await API.graphql(
+      graphqlOperation(listPostLikes, {
+        filter: { postId: { eq: post.frontmatter.id } },
+      })
+    )
+    const like = data.listPostLikes.items[0]
+    // console.log(user);
+    this.setState({ isLoggedIn: !!user, like, user })
+  }
+
+  toggleLike = async () => {
+    const post = this.props.data.markdownRemark
+
+    if (this.state.like) {
+      await API.graphql(
+        graphqlOperation(deletePostLike, {
+          input: { id: this.state.like.id },
+        })
+      )
+      this.setState({ like: null })
+    } else {
+      const like = {
+        postId: post.frontmatter.id,
+        // userId: this.state.user.id,
+        id: uuid(),
+      }
+
+      await API.graphql(
+        graphqlOperation(createPostLike, {
+          input: like,
+        })
+      )
+      this.setState({ like })
+    }
+  }
+
+  render() {
+    const post = this.props.data.markdownRemark
+    const siteTitle = this.props.data.site.siteMetadata.title
+    const { previous, next } = this.props.pageContext
+    const { isLoggedIn, likesPost } = this.state
+
+    return (
+      <Layout location={this.props.location} title={siteTitle}>
+        <SEO title={post.frontmatter.title} description={post.excerpt} />
+        <h1>{post.frontmatter.title}</h1>
+        {isLoggedIn && (
+          <div>
+            <button onClick={this.toggleLike}>
+              {this.state.like ? 'Unlike' : 'Like'}
+            </button>
+          </div>
+        )}
+        <p
+          style={{
+            ...scale(-1 / 5),
+            display: `block`,
+            marginBottom: rhythm(1),
+          }}
+        >
+          {post.frontmatter.date}
+        </p>
+        <div dangerouslySetInnerHTML={{ __html: post.html }} />
         <hr
           style={{
             marginBottom: rhythm(1),
           }}
         />
-        <footer>
-          <Bio />
-        </footer>
-      </article>
+        <Bio />
 
-      <nav>
         <ul
           style={{
             display: `flex`,
@@ -73,9 +114,9 @@ const BlogPostTemplate = ({ data, pageContext, location }) => {
             )}
           </li>
         </ul>
-      </nav>
-    </Layout>
-  )
+      </Layout>
+    )
+  }
 }
 
 export default BlogPostTemplate
@@ -92,9 +133,9 @@ export const pageQuery = graphql`
       excerpt(pruneLength: 160)
       html
       frontmatter {
+        id
         title
         date(formatString: "MMMM DD, YYYY")
-        description
       }
     }
   }

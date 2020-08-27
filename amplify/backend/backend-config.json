@@ -1,0 +1,27 @@
+{
+	"auth": {
+		"smetalentpoolf45d0f1c": {
+			"service": "Cognito",
+			"providerPlugin": "awscloudformation",
+			"dependsOn": [],
+			"customAuth": false
+		}
+	},
+	"api": {
+		"smetalentpool": {
+			"service": "AppSync",
+			"providerPlugin": "awscloudformation",
+			"output": {
+				"authConfig": {
+					"defaultAuthentication": {
+						"authenticationType": "AMAZON_COGNITO_USER_POOLS",
+						"userPoolConfig": {
+							"userPoolId": "authsmetalentpoolf45d0f1c"
+						}
+					},
+					"additionalAuthenticationProviders": []
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,9 @@
+type PostLike 
+  @model
+  @auth(rules: [
+    { allow: owner, ownerField: "userId" }
+  ]) {
+  id: ID!
+  userId: ID!
+  postId: String!
+}
